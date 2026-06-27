@@ -322,9 +322,6 @@ Potential enhancements include:
 | `npm run migration:generate` | Generate a new TypeORM migration |
 | `npm run migration:run` | Execute pending migrations |
 | `npm run seed` | Seed the database with sample data |
-| `npm test` | Run unit tests |
-| `npm run test:coverage` | Generate test coverage report |
-
 ---
 
 # Submission Notes
