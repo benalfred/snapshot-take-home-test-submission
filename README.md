@@ -1,202 +1,346 @@
-# PeopleFlow — Leave Request & Approval Module
+# PeopleFlow Leave Management API
 
-A NestJS + PostgreSQL implementation of a multi-tenant HR leave management API.
+A RESTful Leave Management API built with **NestJS**, **TypeORM**, and **PostgreSQL**.
+
+This project was implemented as part of the **PeopleFlow Backend Engineer Take-Home Assessment**.
 
 ---
 
-## Quick Start
+# Tech Stack
 
-### Prerequisites
-- Node.js 18+
-- PostgreSQL 14+
+- NestJS
+- TypeScript
+- PostgreSQL
+- TypeORM
 
-### 1. Install dependencies
+---
+
+# Features
+
+- Employee leave balance management
+- Leave request submission
+- Leave approval & rejection
+- Annual leave balance tracking
+- Multi-tenant support
+- Transaction-safe leave approvals
+- Idempotent approval endpoint
+- Soft delete support
+- TypeORM migrations
+- Database seeding
+
+---
+
+# Project Structure
+
+src
+├── common
+│   ├── decorators
+│   ├── entities
+│   ├── filters
+│   ├── interceptors
+│   ├── interfaces
+│   └── utils
+│
+├── database
+│   ├── migrations
+│   ├── seeds
+│   ├── datasource.ts
+│   └── database.module.ts
+│
+├── employees
+│   ├── controllers
+│   ├── dto
+│   ├── entities
+│   ├── repositories
+│   ├── services
+│   └── employees.module.ts
+│
+├── leave-requests
+│   ├── controllers
+│   ├── dto
+│   ├── entities
+│   ├── repositories
+│   ├── services
+│   └── leave-requests.module.ts
+│
+├── app.module.ts
+└── main.ts
+```
+
+---
+
+# Getting Started
+
+## 1. Install Dependencies
 
 ```bash
 npm install
 ```
 
-### 2. Configure database
+---
+
+## 2. Configure Environment Variables
+
+Copy the example environment file.
 
 ```bash
 cp .env.example .env
-# Edit .env and set your DATABASE_URL:
-# DATABASE_URL=postgresql://postgres:yourpassword@localhost:5432/peopleflow
 ```
 
-Create the database if it doesn't exist:
-```bash
-createdb peopleflow
-```
+The provided `.env.example` contains the required configuration keys.
 
-### 3. Run migrations and seed
+Update the values in `.env` to match your local PostgreSQL installation if necessary.
 
-```bash
-npm run migrate
-```
+---
 
-This runs both `001_schema.sql` (tables + indexes) and `002_seed.sql` (1 tenant, 4 employees).
-
-### 4. Start the server
+## 3. Run Database Migrations
 
 ```bash
-npm run dev        # development with hot reload
-# or
-npm run build && npm start  # production build
-```
-
-The API will be available at `http://localhost:3000`.
-
-### 5. Run tests
-
-```bash
-npm test
+npm run migration:run
 ```
 
 ---
 
-## Seeded Data
+## 4. Seed the Database
 
-| Employee ID | Name            | Role      | Annual Leave Balance |
-|-------------|-----------------|-----------|----------------------|
-| emp-001     | Alice Johnson   | EMPLOYEE  | 20 days              |
-| emp-002     | Bob Smith       | EMPLOYEE  | 15 days              |
-| emp-003     | Carol Williams  | MANAGER   | 20 days              |
-| emp-004     | David Brown     | HR_ADMIN  | 20 days              |
+```bash
+npm run seed
+```
 
-Tenant ID: `tenant-001`
+This creates sample employees across multiple tenants for testing.
 
 ---
 
-## API Reference
+## 5. Start the Application
 
-All endpoints accept the header `X-Tenant-Id: tenant-001` (defaults to `tenant-001` if omitted).
+### Development
+
+```bash
+npm run dev
+```
+
+### Production
+
+```bash
+npm run build
+npm start
+```
+
+The API will be available at:
+
+```
+http://localhost:3000
+```
+
+---
+
+# API Endpoints
+
+## Employees
+
+### Get Employee Leave Balance
+
+```http
+GET /employees/:id/leave-balance
+```
+
+### Required Headers
+
+```
+x-tenant-id
+```
+
+---
+
+## Leave Requests
 
 ### Submit Leave Request
-```
-POST /leave-requests
-Content-Type: application/json
-X-Tenant-Id: tenant-001
 
-{
-  "employeeId": "emp-001",
-  "leaveType": "ANNUAL",
-  "startDate": "2025-08-01",
-  "endDate": "2025-08-05",
-  "reason": "Family holiday"
-}
+```http
+POST /leave-requests
 ```
+
+### Required Headers
+
+```
+x-tenant-id
+```
+
+---
 
 ### Approve Leave Request
-```
+
+```http
 POST /leave-requests/:id/approve
-X-Approver-Id: emp-003
-X-Approver-Role: MANAGER
-X-Idempotency-Key: unique-key-per-click   (optional, for safe retries)
 ```
+
+### Required Headers
+
+```
+x-tenant-id
+x-approver-id
+x-approver-role
+```
+
+### Optional Header
+
+```
+idempotency-key
+```
+
+---
 
 ### Reject Leave Request
-```
-POST /leave-requests/:id/reject
-Content-Type: application/json
-X-Approver-Id: emp-003
 
-{
-  "comment": "Team is at full capacity during this period"
-}
+```http
+POST /leave-requests/:id/reject
 ```
+
+### Required Headers
+
+```
+x-tenant-id
+x-approver-id
+```
+
+---
 
 ### List Leave Requests
-```
-GET /leave-requests?status=PENDING&employeeId=emp-001
-```
 
-### Get Leave Balance
-```
-GET /employees/emp-001/leave-balance
+```http
+GET /leave-requests
 ```
 
----
+### Query Parameters
 
-## cURL Examples
+| Parameter | Description |
+|------------|-------------|
+| employeeId | Filter by employee |
+| status | Filter by leave request status |
 
-```bash
-# Submit annual leave
-curl -X POST http://localhost:3000/leave-requests \
-  -H "Content-Type: application/json" \
-  -H "X-Tenant-Id: tenant-001" \
-  -d '{"employeeId":"emp-001","leaveType":"ANNUAL","startDate":"2025-08-01","endDate":"2025-08-05"}'
+### Required Headers
 
-# Check balance
-curl http://localhost:3000/employees/emp-001/leave-balance \
-  -H "X-Tenant-Id: tenant-001"
-
-# Approve (replace REQUEST_ID)
-curl -X POST http://localhost:3000/leave-requests/REQUEST_ID/approve \
-  -H "X-Approver-Id: emp-003" \
-  -H "X-Approver-Role: MANAGER" \
-  -H "X-Idempotency-Key: approve-req-$(date +%s)"
-
-# Reject
-curl -X POST http://localhost:3000/leave-requests/REQUEST_ID/reject \
-  -H "Content-Type: application/json" \
-  -H "X-Approver-Id: emp-003" \
-  -d '{"comment":"Team is fully staffed during this period"}'
-
-# List all pending requests
-curl "http://localhost:3000/leave-requests?status=PENDING"
+```
+x-tenant-id
 ```
 
 ---
 
-## Design Decisions & Assumptions
+# Database
 
-### Tenant Isolation
-Tenant ID is passed via `X-Tenant-Id` header and is applied as a `WHERE tenant_id = ?` clause on every query. In production this would be derived from a JWT token, but a full auth system was explicitly out of scope.
+The project uses **TypeORM Migrations** for schema management.
 
-### Ambiguous Requirements — My Answers
+Entity synchronization is disabled (`synchronize: false`) to align with production best practices.
 
-**1. Who can approve leave?**  
-Only employees with role `MANAGER` or `HR_ADMIN`. Role is passed via `X-Approver-Role` header. In production this would be derived from the authenticated user's role.
+Database setup consists of:
 
-**2. Are approvers required to be managers?**  
-Yes — `MANAGER` or `HR_ADMIN`. An `EMPLOYEE` attempting to approve receives `403 Forbidden`.
-
-**3. Are half-days supported?**  
-No — only full calendar days. The `days_requested` is computed as `(endDate - startDate) + 1`. Half-days are documented as a future extension.
-
-**4. Do weekends and public holidays count?**  
-Yes — this implementation counts all calendar days (including weekends). No public holiday calendar is integrated. This is a documented limitation; production systems would want a `WorkCalendar` table per tenant.
-
-**5. How are dates stored and compared?**  
-Leave dates are stored as `DATE` columns in PostgreSQL (no time component). All timestamps use `TIMESTAMPTZ` (UTC). Date comparison uses PostgreSQL date arithmetic, avoiding timezone edge cases.
-
-**6. What happens if two overlapping requests are submitted concurrently?**  
-The overlap check and insert are wrapped in a transaction with a `SELECT … FOR UPDATE` lock on the employee row. The second concurrent submission blocks until the first commits, then sees the first request and throws `409 Conflict`.
-
-**7. How would you extend for a multi-step approval chain?**  
-Introduce an `approval_steps` table: `(id, leave_request_id, step_order, approver_role, status, approved_by, approved_at)`. The leave request status advances to `APPROVED` only when all required steps are complete. Each step would be triggered by the previous step's approval event.
-
-**8. How would you enforce tenant isolation in production?**  
-JWT claims would carry `tenantId`. A NestJS guard extracts and validates it. Row-level security (RLS) in PostgreSQL provides a second enforcement layer. All queries include `tenant_id = ?` — there is no cross-tenant join path.
-
-### Balance Deduction
-Balance is deducted synchronously inside the approve transaction using a conditional atomic UPDATE (`WHERE balance >= days`). This prevents double-deduction without application-level locking.
-
-### Idempotency
-The approve endpoint accepts an optional `X-Idempotency-Key` header. The key is stored on the leave request row with a unique database index. A repeated call with the same key returns the already-approved request without re-processing.
-
-### Error Handling
-Stack traces are never returned to clients. The `AllExceptionsFilter` catches all unhandled exceptions, logs them server-side, and returns a structured `{ statusCode, message, path, timestamp }` response.
+1. Running migrations
+2. Running seed scripts
 
 ---
 
-## Limitations (Not Implemented)
+# Assumptions
 
-- Authentication / JWT
-- Public holiday calendar integration
-- Email notifications
-- Multi-step approval chains
-- Full HR override flow
-- Cancel approved leave
-- Frontend
+The following assumptions were made where the assessment requirements were intentionally left ambiguous:
+
+1. **Leave Approval**
+
+    * Leave requests may only be approved by users with the **MANAGER** or **HR_ADMIN** role.
+
+2. **Approver Roles**
+
+    * Approvers are not required to be direct line managers. Any authorized user with the appropriate role (`MANAGER` or `HR_ADMIN`) may approve leave requests.
+
+3. **Leave Duration**
+
+    * Only full-day leave requests are supported. Half-day leave is considered a future enhancement.
+
+4. **Weekends & Public Holidays**
+
+    * Weekends and public holidays are currently counted as leave days. Holiday calendars and working-day calculations are outside the scope of this assessment.
+
+5. **Date Storage & Comparison**
+
+    * Leave dates are stored using PostgreSQL's `DATE` type and compared using UTC-normalized JavaScript `Date` objects to avoid timezone-related inconsistencies.
+
+6. **Concurrent Leave Requests**
+
+    * If two overlapping leave requests are submitted at nearly the same time, database transactions combined with row-level locking ensure that only one request can be successfully processed, preventing inconsistent leave balances or duplicate approvals.
+
+7. **Multi-Step Approval**
+
+    * The current implementation supports a single approval step. A multi-step approval workflow could be introduced by adding approval stages (e.g., Manager → HR → Director) with configurable approval rules while preserving the existing service structure.
+
+8. **Tenant Isolation**
+
+    * Tenant isolation is enforced by requiring every request to include an `x-tenant-id` header and filtering all database queries by `tenantId`. In a production environment, tenant identity should be derived from authenticated JWT claims or an identity provider rather than client-supplied headers.
+
+
+---
+
+# Design Highlights
+
+The implementation follows several backend engineering best practices:
+
+- Modular NestJS Architecture
+- Repository Pattern
+- TypeORM Transactions
+- Pessimistic Locking
+- Idempotent Leave Approval
+- DTO Validation using `class-validator`
+- Global Exception Handling
+- Multi-Tenant Data Isolation
+- Database Migrations
+- Database Seeding
+
+---
+
+# Future Improvements
+
+Potential enhancements include:
+
+- JWT Authentication
+- Role-Based Access Control (RBAC)
+- Swagger / OpenAPI Documentation
+- Unit Tests
+- Integration Tests
+- Email Notifications
+- Leave Cancellation Workflow
+- Approval Audit Trail
+- Public Holiday Support
+- Half-Day Leave Requests
+- Pagination & Sorting
+
+---
+
+# Available Scripts
+
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start the application in development mode |
+| `npm run build` | Build the application |
+| `npm start` | Run the compiled application |
+| `npm run migration:generate` | Generate a new TypeORM migration |
+| `npm run migration:run` | Execute pending migrations |
+| `npm run seed` | Seed the database with sample data |
+| `npm test` | Run unit tests |
+| `npm run test:coverage` | Generate test coverage report |
+
+---
+
+# Submission Notes
+
+This implementation focuses on:
+
+- Clean architecture
+- Maintainability
+- Transactional consistency
+- Tenant isolation
+- Concurrency safety
+- Production-ready database management
+
+While authentication and automated testing were outside the primary scope of the assessment, the project has been structured to support these enhancements with minimal changes.
+
+---
+
+Developed as part of the **PeopleFlow Backend Engineer Take-Home Assessment**.# snapshot-take-home-test-submission
