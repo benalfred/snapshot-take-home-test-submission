@@ -1,7 +1,7 @@
 import { Column } from 'typeorm';
 import { BaseEntity } from './base.entity';
 
-export abstract class AuditableEntity extends BaseEntity {
+export abstract class TenantEntity extends BaseEntity {
     @Column()
     tenantId: string;
 }

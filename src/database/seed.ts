@@ -1,5 +1,5 @@
-import {seedEmployees} from "./employee.seed";
-import {AppDataSource} from "../datasource";
+import {seedEmployees} from "./seeds/employee.seed";
+import {AppDataSource} from "./datasource";
 
 async function bootstrap() {
     try {

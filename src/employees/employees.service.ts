@@ -1,5 +1,5 @@
-import {EmployeeRepository} from "./repositories/employee.repository";
 import {Injectable, NotFoundException} from "@nestjs/common";
+import {EmployeeRepository} from "./repositories/employee.repository";
 import {Employee} from "./entities/employee.entity";
 
 @Injectable()
@@ -9,16 +9,18 @@ export class EmployeesService {
     ) {}
 
     async findById(
-        id: string,
+        employeeId: string,
         tenantId: string,
     ): Promise<Employee> {
         const employee = await this.employeeRepository.findById(
-            id,
+            employeeId,
             tenantId,
         );
 
         if (!employee) {
-            throw new NotFoundException('Employee not found');
+            throw new NotFoundException(
+                `Employee with id ${employeeId} not found.`,
+            );
         }
 
         return employee;
@@ -27,27 +29,18 @@ export class EmployeesService {
     async getLeaveBalance(
         employeeId: string,
         tenantId: string,
-    ): Promise<number> {
+    ): Promise<{ remainingDays: number }> {
         const employee = await this.findById(
             employeeId,
             tenantId,
         );
 
-        return employee.annualLeaveBalance;
+        return {
+            remainingDays: employee.annualLeaveBalance,
+        };
     }
 
-    async updateLeaveBalance(
-        employeeId: string,
-        tenantId: string,
-        balance: number,
-    ): Promise<Employee> {
-        const employee = await this.findById(
-            employeeId,
-            tenantId,
-        );
-
-        employee.annualLeaveBalance = balance;
-
-        return this.employeeRepository.save(employee);
+    async listEmployees():Promise<Employee[]>{
+        return await this.employeeRepository.findAll();
     }
 }

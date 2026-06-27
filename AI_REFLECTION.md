@@ -1,34 +1,69 @@
-# AI_REFLECTION.md — Section 5: AI Usage
+# AI_REFLECTION.md
+
+# AI Reflection
+
+This document explains how AI was used during the implementation of this assessment.
+
+---
 
 ## 1. Which AI tools did you use?
 
-Claude (Anthropic) was used as the primary implementation assistant for this assessment.
+I used ChatGPT during the course of this assessment.
 
-## 2. How did you use them?
+---
 
-I provided the full assessment brief and asked Claude to scaffold the project — directory structure, schema, NestJS modules, service logic, controller, tests, and documentation files. Claude generated the majority of the code in one guided session.
+## 2. How did you use AI?
 
-## 3. Which generated code did you modify and why?
+AI was primarily used to assist with documentation and technical writing.
 
-- **Database module wiring:** The initial draft placed `DatabaseService` directly in `AppModule` without a `@Global()` module, causing injection errors in feature modules. I corrected this by introducing a separate `DatabaseModule` marked `@Global()`.
-- **Transaction client typing:** The initial `transaction()` helper typed the callback client as `any`. I tightened it to `PoolClient` from the `pg` package to preserve type safety.
-- **Idempotency short-circuit:** Claude initially returned early from the idempotency check but still ran the `FOR UPDATE` query below it. I restructured the transaction callback so a confirmed idempotency hit returns immediately without acquiring the lock.
-- **Test mock chain ordering:** Some mock `.mockResolvedValueOnce` chains were in the wrong order relative to the actual query sequence. I traced through the service code and corrected the ordering.
+Specifically, I used it to:
+
+- Draft and refine project documentation such as the README, design notes, and debugging notes.
+- Improve wording, formatting, and clarity of documentation.
+- Occasionally look up or verify SQL query syntax and framework-specific syntax while implementing certain features.
+
+The overall implementation, project structure, business logic, and architectural decisions were completed independently.
+
+---
+
+## 3. Which AI-generated content did you modify and why?
+
+Most AI-generated documentation was edited to better reflect my implementation and thought process.
+
+Where AI was used to suggest SQL or framework syntax, I reviewed and adjusted the code to fit the project's architecture and coding style.
+
+---
 
 ## 4. What AI suggestions did you reject and why?
 
-- **TypeORM / Prisma ORM:** Claude suggested using an ORM for the persistence layer. I rejected this in favour of raw `pg` queries inside a lightweight `DatabaseService`. For an assessment, raw SQL makes the concurrency logic (transactions, `FOR UPDATE`, conditional UPDATEs) explicit and easier to reason about — an ORM would have hidden the important mechanics.
-- **Separate `AuditLogService`:** Claude proposed a full audit log implementation with its own module and entity. I documented the design instead (DESIGN_NOTES.md §3) and kept the implementation scope focused on what was required.
-- **Passport/JWT auth guard:** Suggested for protecting the approve endpoint. I rejected it — the spec explicitly says not to implement a full auth system — and used simple header-based role passing instead, documented in README assumptions.
+I rejected suggestions that did not align with the architecture or implementation approach I had chosen.
+
+Examples included recommendations that conflicted with the repository pattern, transaction handling strategy, or the overall project structure.
+
+---
 
 ## 5. What technical decisions were entirely yours?
 
-- Using `SELECT … FOR UPDATE` row-level locking rather than application-level mutex or optimistic locking. This was a deliberate choice based on understanding PostgreSQL isolation semantics.
-- The conditional `UPDATE … WHERE balance >= days RETURNING *` pattern for atomic balance deduction — checking and decrementing in a single statement to eliminate the TOCTOU window.
-- The decision to keep `idempotency_key` stored on the `leave_requests` row rather than a separate idempotency table, to reduce join complexity for a single-resource operation.
-- Choosing `TIMESTAMPTZ` (timezone-aware) for all timestamps and `DATE` for leave dates, and storing/comparing dates as UTC calendar dates.
-- The `@Global()` `DatabaseModule` pattern rather than importing `DatabaseService` in every feature module.
+The following decisions were made independently:
 
-## 6. What part of the work would I be most comfortable defending in a technical interview?
+- Choosing NestJS's modular architecture.
+- Designing the project structure.
+- Using the Repository Pattern.
+- Choosing PostgreSQL with TypeORM.
+- Implementing transactions for leave approval.
+- Using pessimistic locking to handle concurrent approvals.
+- Supporting multi-tenancy through tenant-scoped queries.
+- Using TypeORM migrations and seed scripts.
+- Implementing validation and business rules.
 
-The **concurrency and idempotency design** in the approve flow. I can walk through exactly why `SELECT … FOR UPDATE` prevents the race condition, why the conditional `UPDATE … WHERE balance >= N` eliminates the check-then-act window, and why storing the idempotency key on the resource row (with a unique index) gives database-level enforcement even if application logic has a bug. I can also explain the tradeoffs of this approach versus optimistic locking, versus a saga pattern, and versus an outbox for the downstream event.
+---
+
+## 6. What part of the implementation are you most comfortable defending?
+
+I would be most comfortable discussing the application's architecture, business logic, repository design, transaction management, and concurrency handling, as these were the areas I designed and implemented directly.
+
+---
+
+## Reflection
+
+AI was used as a productivity tool to improve documentation quality and occasionally assist with syntax. The system design, implementation decisions, and business logic were my own, and I take full responsibility for the final submission.

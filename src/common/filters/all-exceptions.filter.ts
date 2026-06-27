@@ -1,40 +1,57 @@
 import {
-  ExceptionFilter,
-  Catch,
   ArgumentsHost,
+  Catch,
+  ExceptionFilter,
   HttpException,
   HttpStatus,
   Logger,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
+import { errorResponse } from '../utils/response.utils';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
   private readonly logger = new Logger(AllExceptionsFilter.name);
 
-  catch(exception: unknown, host: ArgumentsHost) {
+  catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
-    const response = ctx.getResponse<Response>();
-    const request = ctx.getRequest<Request>();
 
-    let status = HttpStatus.INTERNAL_SERVER_ERROR;
+    const request = ctx.getRequest<Request>();
+    const response = ctx.getResponse<Response>();
+
+    let statusCode = HttpStatus.INTERNAL_SERVER_ERROR;
+
     let message: string | object = 'Internal server error';
 
     if (exception instanceof HttpException) {
-      status = exception.getStatus();
-      const res = exception.getResponse();
-      message = typeof res === 'string' ? res : (res as any).message ?? res;
+      statusCode = exception.getStatus();
+
+      const exceptionResponse = exception.getResponse();
+
+      message =
+          typeof exceptionResponse === 'string'
+              ? exceptionResponse
+              : (exceptionResponse as Record<string, any>).message ??
+              exceptionResponse;
+
+      this.logger.warn(
+          `${request.method} ${request.originalUrl} -> ${statusCode}`,
+      );
     } else {
-      // Log full error server-side but never leak stack to client
-      const err = exception as Error;
-      this.logger.error(`Unhandled error: ${err?.message ?? 'Unknown'}`, err?.stack);
+      const error = exception as Error;
+
+      this.logger.error(
+          error?.message ?? 'Unhandled Exception',
+          error?.stack,
+      );
     }
 
-    response.status(status).json({
-      statusCode: status,
-      message,
-      path: request.url,
-      timestamp: new Date().toISOString(),
-    });
+    response.status(statusCode).json(
+        errorResponse(
+            statusCode,
+            message,
+            request.originalUrl,
+        ),
+    );
   }
 }
